@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eBay Ergebnisse</title>
+    <style>
+        /* Einfaches Styling für die Ergebnisse */
+        .item {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .item h2 {
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+        .item p {
+            color: #555;
+        }
+        .item a {
+            text-decoration: none;
+            color: blue;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>eBay Ergebnis</h1>
+
+    <form>
+        <label for="query">Search:</label><br>
+        <input type="text" id="query" name="query" placeholder="Enter query"><br><br>
+        <label for="index">Amount of pages:</label><br>
+        <input type="text" id="index" name="index" placeholder="Enter number"><br><br>
+        <button type="button" onclick="get_result()">Get Elements</button>
+    </form>
+
+    <div class="ebay-container"></div>
+
+    <script>
+        async function get_result() {
+            const query = document.getElementById('query').value;
+            const index = document.getElementById('index').value;
+
+            // Validierung der Eingaben
+            if (!query || !index) {
+                alert("Bitte fülle beide Felder aus.");
+                return;
+            }
+
+            //console.log(query, index);
+
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/get_request/${query}/${index}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP-Error: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                //console.log(result);
+                const sorted_result = sort_elements(result)
+                console.log("sorted LISTEEEEEE", sorted_result)
+                create_elements(sorted_result);
+
+                return result;
+            } catch (error) {
+                console.error("Fehler beim Abrufen der Daten:", error);
+                alert("Fehler beim Abrufen der Daten. Überprüfe die Konsole für weitere Details.");
+            }
+        }
+
+        function create_elements(array) {
+            const container = document.querySelector(".ebay-container");
+
+            // Clear the container to avoid duplications
+            container.innerHTML = "";
+
+            // Überprüfung, ob das Array leer ist
+            if (!array || array.length === 0) {
+                container.innerHTML = "<p>Keine Ergebnisse gefunden.</p>";
+                return;
+            }
+
+            array.forEach(item => {
+                //console.log("ELELELELELLE", element)
+
+                //console.log(item.link, item.name, item.price);
+
+                // Create a div to hold the item
+                const itemDiv = document.createElement("div");
+                itemDiv.className = "item";
+
+                // Create the name element
+                const name = document.createElement("h2");
+                name.textContent = item.name;
+
+                // Create the price element
+                const price = document.createElement("p");
+                price.textContent = `Price: ${item.price}`;
+
+                // Create the link element
+                const link = document.createElement("a");
+                link.href = item.link;
+                link.textContent = "View Item";
+                link.target = "_blank";
+
+                // Append all to the itemDiv
+                itemDiv.appendChild(name);
+                itemDiv.appendChild(price);
+                itemDiv.appendChild(link);
+
+                // Append the itemDiv to the container
+                container.appendChild(itemDiv);
+
+            });
+        }
+
+
+    function sort_elements(array){
+        let sorted_list = [];
+        let full_list = [];
+        let price_json = {};
+        //USE LIST.FLAT()
+        array.forEach(item => {
+            item.forEach(element => {
+                full_list.push(element);
+            });
+        });
+        full_list.forEach(each => {
+
+            let key = each.price;
+            price_json[key] = each
+        });
+        
+        const sorted = sortByPrice(full_list);
+        //console.log(sorted)
+        return sorted
+
+    }
+
+    function sortByPrice(data) {
+    // Extrahiere die Einträge aus dem Objekt
+    const entries = Object.entries(data);
+
+    // Konvertiere die Einträge in ein Array von Objekten mit bereinigtem Preis
+    const items = entries.map(([key, value]) => {
+        // Falls mehrere Preise existieren, splitte nach "€" und verwende nur den ersten
+        const pricePart = value.price.split('€')[0].trim();
+
+        // Entferne Tausender-Punkte und wandle Komma in Punkt um
+        const cleanedPrice = pricePart
+            .replace(/\./g, '') // Entferne Tausender-Punkte
+            .replace(',', '.') // Ersetze Komma durch Punkt (für Float)
+            .replace(/[^0-9.-]/g, ''); // Entferne alles außer Zahlen, Minus und Punkt
+
+        // Versuche den Preis in eine Zahl umzuwandeln
+        const price = parseFloat(cleanedPrice) || 0;
+
+        return {
+            ...value,
+            originalKey: key, // Behalte den Original-Schlüssel bei
+            numericPrice: price,
+        };
+    });
+
+    // Sortiere die Objekte nach dem bereinigten Preis
+    items.sort((a, b) => a.numericPrice - b.numericPrice);
+
+    return items;
+}
+
+    </script>
+</body>
+</html>
+
+
+
+</body>
+</html>

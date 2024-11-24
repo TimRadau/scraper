@@ -2,18 +2,10 @@ import requests
 from bs4 import BeautifulSoup
 import random
 import json
+from agents import userAgents
+from flask import Flask, render_template, jsonify
 
 
-
-userAgents=['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.361675787110',
-'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5412.99 Safari/537.36',
-'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.5361.172 Safari/537.36',
-'Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5388.177 Safari/537.36',
-'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5397.215 Safari/537.36']
-
-headers={'User-Agent': random.choice(userAgents)}
-query = input("Suche: ")
-query = query.replace(" ", "-")
 
 def check_site_availability(siteindex, query):
     
@@ -30,7 +22,14 @@ def check_site_availability(siteindex, query):
 
 def get_one_site(siteindex, query, headers):
 
-    resp = check_site_availability(siteindex, query)
+    
+    URL = f"https://www.ebay-kleinanzeigen.de/seite:{siteindex}/s-{query}/k0"
+    print(URL)
+
+
+    resp = requests.get(URL,headers=headers)
+
+    #resp = check_site_availability(siteindex, query)
     soup = BeautifulSoup(resp.text,"html.parser")
     
     elements = soup.find_all("div", class_="aditem-main")
@@ -58,9 +57,32 @@ def get_one_site(siteindex, query, headers):
         })
     return items
 
-#print(json.dumps(items, indent=2, ensure_ascii=False))
-siteindex = 1
-item = get_one_site(siteindex, query, headers)
-print(json.dumps(item, indent=2, ensure_ascii=False))
 
-#pagination-not-linked pagination-page span für seitenanzahl
+def get_pages(query, siteindex):
+    headers = {'User-Agent': random.choice(userAgents)}
+    all_elements = []
+
+    for i in range(siteindex):
+        all_elements.append(get_one_site(i, query, headers))
+
+    # Rückgabe des JSON-Objekts
+    return json.dumps(all_elements, indent=2, ensure_ascii=False)
+
+
+#get_pages()
+
+app = Flask(__name__, template_folder="../templates")
+
+
+@app.route("/")
+def home():
+    return render_template("all_elements.html")
+
+@app.route("/get_request/<search>/<page_amount>")
+def get_req(search, page_amount):
+    result_json = get_pages(search, int(page_amount))
+
+    return jsonify(json.loads(result_json))
+
+if __name__ == "__main__":
+    app.run(debug=True)
